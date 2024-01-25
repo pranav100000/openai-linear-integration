@@ -53,28 +53,46 @@ class OpenAIClient:
             tool_choice={"type": "function", "function": {"name": "determine_bug_or_feature_or_neither"}}
         )
         json_resp = json.loads(response.choices[0].message.tool_calls[0].function.arguments)
-        if json_resp is None: raise Exception("determine_bug_or_feature response is None")
+        if json_resp is None: 
+            raise Exception("determine_bug_or_feature response is None")
         logging.info(f"Issue type: {json_resp["issue_type"]}")
         logging.debug("determine_bug_or_feature response: " + str(json_resp))
         return json_resp["issue_type"], json_resp["issue_name"], json_resp["issue_description"]
         
     def find_similar_issue(self, issues, issue, similarity_threshold):
         logging.info(f"Finding similar issue for issue with name: \"{issue[1]}\", and description: \"{issue[2]}\"")
-        if len(issues) == 0: return None
+        if len(issues) == 0: 
+            return
         query_name_embedding, query_description_embedding = self._get_embedding(issue[1]), self._get_embedding(issue[2])
         embeddings = []
         for issue in issues:
             name_embedding, description_embedding = self._get_embedding(issue["title"]), self._get_embedding(issue["description"])
             similarity = self._find_similarity(name_embedding, query_name_embedding, description_embedding, query_description_embedding)
-            if similarity > similarity_threshold: embeddings.append((issue["id"], similarity))
-            
+            if similarity > similarity_threshold: 
+                embeddings.append((issue["id"], similarity)) 
         embeddings = sorted(embeddings, key=lambda x: x[1], reverse=True)
         if len(embeddings) > 0: 
             logging.info(f"Found similar issue. Creating comment on issue with ID: {embeddings[0][0]}")
             logging.debug(f"Most similar issue's ID is: {embeddings[0][0]} with similarity: {embeddings[0][1]}")
             return embeddings[0][0]
         logging.info("No similar issue found. Creating new issue.")
-        return None
+    
+    @retry.retry(tries=3, delay=2)
+    def generate_test_transcript(self, issue_type):
+        logging.info(f"Generating test transcript for issue type: {issue_type}")
+        if issue_type not in ["bug fix", "feature request", "neither"]: 
+            logging.error(f"Invalid issue type: {issue_type}")
+            return
+        response = self.client.chat.completions.create(
+            model=self.MODEL,
+            n=1,
+            messages=[
+                {"role": "system", "content": "You are an assistant. Based on a prompt, create a conversation transcript. If the prompt is 'bug fix', create a conversation in which the customer is discussing a bug they need fixed. If the prompt is 'feature request', create a conversation in which the customer is requesting a new feature. If the prompt is 'neither', create a conversation in which the customer is not experiencing an issue and is not requesting a new feature."},
+                {"role": "user", "content": issue_type}
+            ]
+        )
+        logging.info(f"Generated test transcript:\n\n{response.choices[0].message.content}")
+        return response.choices[0].message.content
     
     @retry.retry(tries=3, delay=2)
     def _get_embedding(self, text):

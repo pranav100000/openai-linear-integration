@@ -21,14 +21,16 @@ class LinearClient:
             "query": "query Teams { teams { nodes { id name } }}"
         }
         r = requests.post(self.LINEAR_GRAPH_QL_URL, headers=headers, json=data)
-        if not r.ok: raise Exception(r.text)
+        if not r.ok: 
+            raise Exception(r.text)
         resp_json = r.json()
         logging.debug(f"team_id: {resp_json["data"]["teams"]["nodes"][0]["id"]}")
         self.team_id = resp_json["data"]["teams"]["nodes"][0]["id"]
     
     @retry.retry(tries=3, delay=2)
     def create_issue(self, type, title, description):
-        if type not in ["bug fix", "feature request"]: return
+        if type not in ["bug fix", "feature request"]: 
+            return
         logging.info(f"Creating issue with type: {type}, title: {title}, and description: {description}")
         headers = {"Authorization": f'{self.api_key}', "Content-Type": 'application/json'}
         data = {
@@ -51,7 +53,8 @@ class LinearClient:
             """
         }
         r = requests.post(self.LINEAR_GRAPH_QL_URL, headers=headers, json=data)
-        if not r.ok: raise Exception(r.text)
+        if not r.ok: 
+            raise Exception(r.text)
         resp_json = r.json()
         logging.debug(f"ID of created issue: {resp_json["data"]["issueCreate"]["issue"]["id"]}")
     
@@ -77,7 +80,8 @@ class LinearClient:
             """
         }
         r = requests.post(self.LINEAR_GRAPH_QL_URL, headers=headers, json=data)
-        if not r.ok: raise Exception(r.text)
+        if not r.ok: 
+            raise Exception(r.text)
         resp_json = r.json()
         logging.debug(f"ID of created comment: {resp_json["data"]["commentCreate"]["comment"]["id"]}")
     
@@ -105,7 +109,8 @@ class LinearClient:
             """
         }
         r = requests.post(self.LINEAR_GRAPH_QL_URL, headers=headers, json=data)
-        if not r.ok: raise Exception(r.text)
+        if not r.ok: 
+            raise Exception(r.text)
         resp_json = r.json()
         key_to_label = {v: k for k, v in self.LABEL_TO_KEY.items()}
         for node in resp_json["data"]["team"]["issues"]["nodes"]:
